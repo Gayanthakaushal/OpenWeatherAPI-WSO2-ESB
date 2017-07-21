@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proxy name="ExProxy" startOnLoad="true" transports="vfs" xmlns="http://ws.apache.org/ns/synapse">
+    <target>
+        <inSequence>
+            <log level="custom">
+                <property name="Hello" value="&quot;##################&quot;"/>
+            </log>
+            <!--     <property expression="$body" name="originalRequest" scope="default" type="OM"/> -->
+            <property expression="//getQuote//request//symbol" name="uri.var.city" scope="default" type="STRING"/>
+            <log level="custom">
+                <property expression="get-property('uri.var.city')" name="World"/>
+            </log>
+            <send>
+                <endpoint>
+                    <http method="get" uri-template="http://samples.openweathermap.org/data/2.5/weather?q={uri.var.city}&amp;appid=7edd664a7aa78ed241b4399e8d0c84d7"/>
+                </endpoint>
+            </send>
+        </inSequence>
+        <outSequence>
+            <property name="OUT_ONLY" scope="default" type="STRING" value="true"/>
+            <log level="full"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/xml"/>
+            <dbreport>
+                <connection>
+                    <pool>
+                        <password>root</password>
+                        <driver>com.mysql.jdbc.Driver</driver>
+                        <url>jdbc:mysql://localhost:3306/weather</url>
+                        <user>root</user>
+                    </pool>
+                </connection>
+                <statement>
+                    <sql><![CDATA[INSERT INTO weather.weather VALUES (? , ? , ? , ? , ?)]]></sql>
+                    <parameter expression="//jsonObject//weather//id" type="VARCHAR"/>
+                    <parameter expression="//jsonObject//weather//main" type="VARCHAR"/>
+                    <parameter expression="//jsonObject//weather//description" type="VARCHAR"/>
+                    <parameter expression="//jsonObject//weather//icon" type="VARCHAR"/>
+                    <parameter expression="//jsonObject//weather//base" type="VARCHAR"/>
+                </statement>
+            </dbreport>
+            <send>
+                <endpoint>
+                    <address uri="vfs:file:///home/gayantha/VFS/out"/>
+                </endpoint>
+            </send>
+        </outSequence>
+        <faultSequence/>
+    </target>
+    <parameter name="transport.PollInterval">2</parameter>
+    <parameter name="transport.vfs.FileURI">file:///home/gayantha/VFS/in</parameter>
+    <parameter name="transport.vfs.ContentType">text/xml</parameter>
+    <parameter name="transport.vfs.ActionAfterProcess">MOVE</parameter>
+    <parameter name="transport.vfs.MoveAfterFailure">file:///home/gayantha/VFS/original</parameter>
+    <parameter name="transport.vfs.ActionAfterFailure">MOVE</parameter>
+    <parameter name="transport.vfs.FileNamePattern">.*\.xml</parameter>
+    <parameter name="transport.vfs.MoveAfterProcess">file:///home/gayantha/VFS/original</parameter>
+</proxy>
